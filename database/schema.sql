@@ -37,6 +37,12 @@ CREATE TABLE plans (
   description TEXT NOT NULL,
   is_public BOOLEAN NOT NULL DEFAULT true
 );
+CREATE TABLE account_plans (
+  user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  plan plan_code NOT NULL REFERENCES plans(code),
+  activated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 INSERT INTO plans (code,name,monthly_price_cents,description) VALUES
   ('relationship_free','Relacionamentos gratuito',0,'Acesso de relacionamento gratuito conforme regras de descoberta disponíveis.'),
   ('content_free','Conteúdo gratuito',0,'Rede social de conteúdo: até 10 publicações por mês e perfis públicos.'),
@@ -109,6 +115,19 @@ CREATE TABLE content_posts (
   status VARCHAR(20) NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX content_posts_monthly_limit ON content_posts (producer_id, created_at) WHERE status <> 'archived';
+-- Conteúdo gratuito tem teto de 10 publicações por mês; criadores não têm esse teto.
+CREATE OR REPLACE FUNCTION enforce_monthly_post_limit() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE selected_plan plan_code; monthly_total INTEGER;
+BEGIN
+  SELECT plan INTO selected_plan FROM account_plans WHERE user_id=NEW.producer_id;
+  IF selected_plan NOT IN ('content_free','creator') THEN RAISE EXCEPTION 'Plano não permite publicar conteúdo'; END IF;
+  IF selected_plan='content_free' THEN
+    SELECT count(*) INTO monthly_total FROM content_posts WHERE producer_id=NEW.producer_id AND created_at >= date_trunc('month',NOW()) AND status <> 'archived';
+    IF monthly_total >= 10 THEN RAISE EXCEPTION 'Limite mensal de 10 publicações atingido'; END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER content_posts_plan_limit BEFORE INSERT ON content_posts FOR EACH ROW EXECUTE FUNCTION enforce_monthly_post_limit();
 CREATE TABLE content_accesses (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   content_id BIGINT NOT NULL REFERENCES content_posts(id), viewer_id BIGINT REFERENCES users(id),
@@ -154,6 +173,10 @@ CREATE INDEX idx_interests_recipient ON relationship_interests (to_user_id, stat
 CREATE OR REPLACE FUNCTION create_user_settings() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN INSERT INTO user_settings (user_id) VALUES (NEW.id); RETURN NEW; END; $$;
 CREATE TRIGGER users_settings_after_insert AFTER INSERT ON users FOR EACH ROW EXECUTE FUNCTION create_user_settings();
+CREATE OR REPLACE FUNCTION create_default_account_plan() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN INSERT INTO account_plans (user_id,plan) VALUES (NEW.id,'relationship_free'); RETURN NEW; END; $$;
+CREATE TRIGGER users_plan_after_insert AFTER INSERT ON users FOR EACH ROW EXECUTE FUNCTION create_default_account_plan();
+
 
 -- Precedência: bloqueio invalida todo interesse e match entre o par.
 CREATE OR REPLACE FUNCTION invalidate_blocked_interactions() RETURNS trigger LANGUAGE plpgsql AS $$
