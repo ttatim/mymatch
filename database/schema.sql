@@ -155,6 +155,18 @@ CREATE TABLE content_media (
   mime_type VARCHAR(100) NOT NULL, size_bytes BIGINT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 52428800),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE content_likes (
+  content_id BIGINT NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(content_id,user_id)
+);
+CREATE TABLE content_comments (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  content_id BIGINT NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id), body VARCHAR(1000) NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'published', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (length(trim(body)) > 0)
+);
 CREATE INDEX idx_content_accesses_viewer ON content_accesses (viewer_id, content_id, accessed_at DESC);
 CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),

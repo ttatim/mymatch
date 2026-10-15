@@ -169,6 +169,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (PDOException) { if(db()->inTransaction())db()->rollBack(); flash('warning','Já existe uma compra pendente ou concluída para esta publicação.'); }
         redirect('feed');
     }
+    if ($intent === 'like_content') {
+        $contentId=(int)$_POST['content_id'];
+        db()->prepare('INSERT INTO content_likes(content_id,user_id) VALUES (:content,:user) ON CONFLICT DO NOTHING')->execute(['content'=>$contentId,'user'=>$id]);
+        redirect('feed');
+    }
+    if ($intent === 'comment_content') {
+        $contentId=(int)$_POST['content_id']; $body=trim($_POST['body'] ?? '');
+        if ($body) { db()->prepare('INSERT INTO content_comments(content_id,user_id,body) VALUES (:content,:user,:body)')->execute(['content'=>$contentId,'user'=>$id,'body'=>mb_substr($body,0,1000)]); }
+        redirect('feed');
+    }
     if ($intent === 'report') {
         $target=(int)($_POST['reported_user_id'] ?? 0); $content=(int)($_POST['reported_content_id'] ?? 0); $category=$_POST['category'] ?? ''; $details=trim($_POST['details'] ?? '');
         if (in_array($category,['assédio','fraude','conteúdo impróprio','outro'],true) && $details) { db()->prepare('INSERT INTO reports (reporter_id,reported_user_id,reported_content_id,category,details) VALUES (:reporter,:target,:content,:category,:details)')->execute(['reporter'=>$id,'target'=>$target?:null,'content'=>$content?:null,'category'=>$category,'details'=>$details]); flash('success','Denúncia recebida. A equipe autorizada fará a triagem.'); }
