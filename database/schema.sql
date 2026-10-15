@@ -9,6 +9,7 @@ CREATE TYPE plan_code AS ENUM ('relationship_free', 'content_free', 'relationshi
 CREATE TYPE subscription_status AS ENUM ('pending', 'active', 'past_due', 'cancelled');
 CREATE TYPE payment_provider AS ENUM ('pagseguro', 'mercadopago');
 CREATE TYPE payment_status AS ENUM ('pending', 'approved', 'rejected', 'refunded');
+CREATE TYPE payment_context AS ENUM ('subscription', 'marketplace');
 
 CREATE TABLE users (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -58,13 +59,18 @@ CREATE TABLE payment_transactions (
   user_id BIGINT NOT NULL REFERENCES users(id),
   subscription_id BIGINT REFERENCES subscriptions(id),
   provider payment_provider NOT NULL,
+  context payment_context NOT NULL,
   provider_payment_id VARCHAR(255) UNIQUE,
   external_reference UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
   provider_fee_cents INTEGER NOT NULL DEFAULT 0 CHECK (provider_fee_cents >= 0),
   status payment_status NOT NULL DEFAULT 'pending',
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), approved_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), approved_at TIMESTAMPTZ,
+  CHECK (
+    (context = 'subscription' AND subscription_id IS NOT NULL AND provider = 'mercadopago')
+    OR (context = 'marketplace' AND subscription_id IS NULL AND provider = 'pagseguro')
+  )
 );
 CREATE TABLE wallets (
   id BIGINT PRIMARY KEY,
@@ -177,7 +183,7 @@ CREATE TRIGGER users_disable_interactions AFTER UPDATE OF status ON users FOR EA
 CREATE OR REPLACE FUNCTION distribute_marketplace_payment(payment_id BIGINT, creator_id BIGINT) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE gross INTEGER; provider_fee INTEGER; fee INTEGER; creator_wallet BIGINT;
 BEGIN
-  SELECT amount_cents,provider_fee_cents INTO gross,provider_fee FROM payment_transactions WHERE id=payment_id AND status='approved';
+  SELECT amount_cents,provider_fee_cents INTO gross,provider_fee FROM payment_transactions WHERE id=payment_id AND status='approved' AND context='marketplace' AND provider='pagseguro';
   IF gross IS NULL THEN RAISE EXCEPTION 'Pagamento não aprovado'; END IF;
   fee := ROUND(gross * 0.07);
   IF gross - fee - provider_fee < 0 THEN RAISE EXCEPTION 'Taxas excedem o valor do pagamento'; END IF;
