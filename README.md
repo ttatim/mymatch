@@ -11,8 +11,8 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 - Feed registra apenas acessos válidos; a identificação para integração continua dependente de consentimento.
 - Denúncias são registradas para a triagem administrativa, sem expor o denunciante ao denunciado.
 - Encerramento de conta interrompe novas interações, desativa os perfis e invalida matches e interesses ativos.
-- Planos pagos: Relacionamentos Plus (R$ 15,90/mês) e Conteúdo Plus (R$ 59,90/mês), por cobrança recorrente.
-- Marketplace de criadores: ledger separa 7% para a carteira interna da plataforma (id 1), taxa administrativa do provedor e saldo do criador.
+- Planos pagos: Relacionamentos Plus (R$ 15,90/mês) e Conteúdo Plus (R$ 59,90/mês), por cobrança recorrente exclusivamente pelo Mercado Pago.
+- Marketplace de criadores: PagBank/PagSeguro é o único provedor; o ledger separa 7% para a carteira interna da plataforma (id 1), taxa administrativa do provedor e saldo do criador.
 - Compra, assinatura e consumo de conteúdo não concedem acesso pessoal.
 
 ## Como executar
@@ -30,7 +30,7 @@ Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users
 
 ## Pagamentos
 
-O sistema possui registros de assinatura e transação para PagBank/PagSeguro e Mercado Pago. A ativação real exige credenciais, criação de checkout hospedado e webhook autenticado de cada provedor; planos pagos não são liberados com uma transação pendente. Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do provedor e credita o restante ao criador.
+O Mercado Pago processa exclusivamente assinaturas dos usuários. O PagBank/PagSeguro processa exclusivamente pagamentos marketplace de criadores. A ativação real exige credenciais, checkout hospedado e webhook autenticado de cada provedor; planos pagos não são liberados com uma transação pendente. Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do PagSeguro e credita o restante ao criador.
 
 ## Próximos incrementos
 
