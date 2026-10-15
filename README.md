@@ -10,6 +10,7 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 - Bloqueios prevalecem e invalidam interesses/matches existentes.
 - Feed registra apenas acessos válidos; a identificação para integração continua dependente de consentimento.
 - Denúncias são registradas para a triagem administrativa, sem expor o denunciante ao denunciado.
+- Encerramento de conta interrompe novas interações, desativa os perfis e invalida matches e interesses ativos.
 - Compra, assinatura e consumo de conteúdo não concedem acesso pessoal.
 
 ## Como executar
