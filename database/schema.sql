@@ -180,6 +180,20 @@ CREATE TABLE reports (
   status VARCHAR(20) NOT NULL DEFAULT 'open', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_reports_triage ON reports (status, created_at);
+CREATE TABLE notifications (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type VARCHAR(40) NOT NULL, title VARCHAR(160) NOT NULL, body TEXT,
+  url VARCHAR(500), read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX notifications_unread ON notifications (user_id, created_at DESC) WHERE read_at IS NULL;
+CREATE TABLE audit_logs (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  actor_id BIGINT REFERENCES users(id), action VARCHAR(80) NOT NULL,
+  subject_type VARCHAR(50), subject_id BIGINT, metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX audit_logs_subject ON audit_logs (subject_type,subject_id,created_at DESC);
 CREATE INDEX idx_accesses_producer_lookup ON content_accesses (content_id, viewer_id) WHERE is_valid;
 CREATE INDEX idx_interests_recipient ON relationship_interests (to_user_id, status);
 
