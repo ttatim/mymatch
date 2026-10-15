@@ -138,6 +138,17 @@ CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (blocker_id, blocked_id), CHECK (blocker_id <> blocked_id)
 );
+CREATE TABLE friendships (
+  user_low_id BIGINT NOT NULL REFERENCES users(id),
+  user_high_id BIGINT NOT NULL REFERENCES users(id),
+  requester_id BIGINT NOT NULL REFERENCES users(id),
+  status VARCHAR(12) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined','cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), responded_at TIMESTAMPTZ,
+  PRIMARY KEY (user_low_id,user_high_id),
+  CHECK (user_low_id < user_high_id),
+  CHECK (requester_id IN (user_low_id,user_high_id))
+);
+CREATE INDEX friendships_incoming ON friendships (user_high_id,status);
 CREATE TABLE relationship_interests (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   from_user_id BIGINT NOT NULL REFERENCES users(id), to_user_id BIGINT NOT NULL REFERENCES users(id),
@@ -185,6 +196,8 @@ BEGIN
    WHERE (from_user_id=NEW.blocker_id AND to_user_id=NEW.blocked_id) OR (from_user_id=NEW.blocked_id AND to_user_id=NEW.blocker_id);
   UPDATE matches SET status='blocked', ended_at=NOW()
    WHERE user_low_id=LEAST(NEW.blocker_id,NEW.blocked_id) AND user_high_id=GREATEST(NEW.blocker_id,NEW.blocked_id) AND status='active';
+  UPDATE friendships SET status='cancelled', responded_at=NOW()
+   WHERE user_low_id=LEAST(NEW.blocker_id,NEW.blocked_id) AND user_high_id=GREATEST(NEW.blocker_id,NEW.blocked_id) AND status IN ('pending','accepted');
   RETURN NEW;
 END; $$;
 CREATE TRIGGER blocks_invalidate AFTER INSERT ON blocks FOR EACH ROW EXECUTE FUNCTION invalidate_blocked_interactions();
