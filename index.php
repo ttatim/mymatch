@@ -3,6 +3,25 @@ declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 require __DIR__ . '/app/layout.php';
 
+try {
+    db();
+} catch (PDOException) {
+    http_response_code(503);
+    layout_start('Banco de dados indisponível', null); ?>
+    <div class="row justify-content-center pt-5"><div class="col-lg-7"><div class="card border-warning shadow">
+      <div class="card-body p-5 text-center"><i class="bi bi-database-x display-4 text-warning"></i>
+      <h2 class="mt-3">O banco de dados local não está disponível</h2>
+      <p class="text-muted">A prévia precisa de PostgreSQL em execução antes de permitir login e acesso aos dados.</p>
+      <div class="alert alert-light text-start mb-0"><strong>Preparação local:</strong><br>
+      1. Inicie o PostgreSQL na porta configurada.<br>
+      2. Crie o banco <code>mymatch</code>.<br>
+      3. Execute os scripts <code>database/schema.sql</code> e <code>database/demo.sql</code>.<br>
+      4. Configure as variáveis de ambiente de <code>.env.example</code>.</div>
+      </div></div></div></div><?php
+    layout_end();
+    exit;
+}
+
 $action = $_GET['action'] ?? '';
 if ($action === 'logout') { session_destroy(); header('Location: index.php?page=login'); exit; }
 

@@ -28,6 +28,8 @@ Para instalações já criadas antes de um incremento, aplique as novas tabelas 
 
 Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users SET is_admin = true WHERE email = 'ana@mymatch.local'.
 
+No macOS com Homebrew, instale e inicie PostgreSQL antes da prévia com: brew install postgresql@16; brew services start postgresql@16.
+
 ## Pagamentos
 
 O Mercado Pago processa exclusivamente assinaturas dos usuários. O PagBank/PagSeguro processa exclusivamente pagamentos marketplace de criadores. A ativação real exige credenciais, checkout hospedado e webhook autenticado de cada provedor; planos pagos não são liberados com uma transação pendente. Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do PagSeguro e credita o restante ao criador.
