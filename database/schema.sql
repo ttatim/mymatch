@@ -191,6 +191,14 @@ CREATE TABLE community_members (
   role VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('owner','moderator','member')),
   joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(community_id,user_id)
 );
+CREATE TABLE community_posts (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  community_id BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  body VARCHAR(2000) NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'published',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), CHECK (length(trim(body)) > 0)
+);
+CREATE INDEX community_posts_timeline ON community_posts(community_id,created_at DESC);
 CREATE INDEX idx_content_accesses_viewer ON content_accesses (viewer_id, content_id, accessed_at DESC);
 CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),
