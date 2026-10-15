@@ -19,6 +19,8 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 
 Dados demonstrativos: `ana@mymatch.local` / `mymatch123`.
 
+Para instalações já criadas antes de um incremento, aplique as novas tabelas e triggers com a ferramenta de migração escolhida pelo time; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
+
 ## Próximos incrementos
 
 Gate real de verificação de idade, pagamentos, upload seguro, mensageria pós-match, fila de moderação, auditoria e políticas LGPD devem ser implantados antes de produção.

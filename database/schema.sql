@@ -64,6 +64,15 @@ CREATE TABLE matches (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), ended_at TIMESTAMPTZ,
   UNIQUE(user_low_id,user_high_id), CHECK (user_low_id < user_high_id)
 );
+CREATE TABLE match_messages (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  match_id BIGINT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  sender_id BIGINT NOT NULL REFERENCES users(id),
+  body VARCHAR(2000) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (length(trim(body)) > 0)
+);
+CREATE INDEX idx_match_messages_timeline ON match_messages (match_id, created_at);
 CREATE TABLE reports (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, reporter_id BIGINT NOT NULL REFERENCES users(id),
   reported_user_id BIGINT REFERENCES users(id), category VARCHAR(50) NOT NULL, details TEXT,
@@ -86,3 +95,14 @@ BEGIN
   RETURN NEW;
 END; $$;
 CREATE TRIGGER blocks_invalidate AFTER INSERT ON blocks FOR EACH ROW EXECUTE FUNCTION invalidate_blocked_interactions();
+
+-- Conversa só existe em match ativo e somente os participantes podem enviar mensagens.
+CREATE OR REPLACE FUNCTION validate_match_message() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM matches WHERE id=NEW.match_id AND status='active'
+                 AND NEW.sender_id IN (user_low_id,user_high_id)) THEN
+    RAISE EXCEPTION 'Mensagem não permitida para este match';
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER match_messages_validate BEFORE INSERT ON match_messages FOR EACH ROW EXECUTE FUNCTION validate_match_message();
