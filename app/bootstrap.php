@@ -35,9 +35,19 @@ function current_user(): ?array
     if ($user !== false) return $user;
     if (empty($_SESSION['user_id'])) return $user = null;
 
-    $statement = db()->prepare('SELECT id, email, status, birth_date FROM users WHERE id = :id');
+    $statement = db()->prepare('SELECT id, email, status, birth_date, is_admin FROM users WHERE id = :id');
     $statement->execute(['id' => $_SESSION['user_id']]);
     return $user = $statement->fetch() ?: null;
+}
+
+function require_admin(): array
+{
+    $user = require_login();
+    if (!$user['is_admin']) {
+        http_response_code(403);
+        exit('Acesso administrativo não autorizado.');
+    }
+    return $user;
 }
 
 function require_login(): array
