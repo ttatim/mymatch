@@ -116,8 +116,18 @@ CREATE TABLE content_posts (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   producer_id BIGINT NOT NULL REFERENCES users(id),
   title VARCHAR(160) NOT NULL, description TEXT, access_type access_kind NOT NULL DEFAULT 'free',
+  price_cents INTEGER CHECK (price_cents IS NULL OR price_cents > 0),
   is_adult BOOLEAN NOT NULL DEFAULT false, visibility VARCHAR(20) NOT NULL DEFAULT 'public',
   status VARCHAR(20) NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE content_purchases (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  content_id BIGINT NOT NULL REFERENCES content_posts(id),
+  buyer_id BIGINT NOT NULL REFERENCES users(id),
+  transaction_id BIGINT UNIQUE REFERENCES payment_transactions(id),
+  status payment_status NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), approved_at TIMESTAMPTZ,
+  UNIQUE(content_id,buyer_id)
 );
 CREATE INDEX content_posts_monthly_limit ON content_posts (producer_id, created_at) WHERE status <> 'archived';
 -- Conteúdo gratuito tem teto de 10 publicações por mês; criadores não têm esse teto.
