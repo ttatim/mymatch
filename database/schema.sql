@@ -46,6 +46,7 @@ CREATE TABLE content_accesses (
   content_id BIGINT NOT NULL REFERENCES content_posts(id), viewer_id BIGINT REFERENCES users(id),
   is_valid BOOLEAN NOT NULL DEFAULT false, accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_content_accesses_viewer ON content_accesses (viewer_id, content_id, accessed_at DESC);
 CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY (blocker_id, blocked_id), CHECK (blocker_id <> blocked_id)
@@ -78,6 +79,7 @@ CREATE TABLE reports (
   reported_user_id BIGINT REFERENCES users(id), category VARCHAR(50) NOT NULL, details TEXT,
   status VARCHAR(20) NOT NULL DEFAULT 'open', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_reports_triage ON reports (status, created_at);
 CREATE INDEX idx_accesses_producer_lookup ON content_accesses (content_id, viewer_id) WHERE is_valid;
 CREATE INDEX idx_interests_recipient ON relationship_interests (to_user_id, status);
 

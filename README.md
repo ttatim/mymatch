@@ -8,6 +8,8 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 - Integração opcional: visita válida + consentimento explícito + perfis ativos.
 - Curtida unilateral cria apenas uma oportunidade; reciprocidade cria o match.
 - Bloqueios prevalecem e invalidam interesses/matches existentes.
+- Feed registra apenas acessos válidos; a identificação para integração continua dependente de consentimento.
+- Denúncias são registradas para a triagem administrativa, sem expor o denunciante ao denunciado.
 - Compra, assinatura e consumo de conteúdo não concedem acesso pessoal.
 
 ## Como executar
