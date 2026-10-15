@@ -135,8 +135,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         flash('warning','Este conteúdo requer uma condição de acesso que ainda não está disponível neste MVP.'); redirect('feed');
     }
     if ($intent === 'report') {
-        $target=(int)($_POST['reported_user_id'] ?? 0); $category=$_POST['category'] ?? ''; $details=trim($_POST['details'] ?? '');
-        if (in_array($category,['assédio','fraude','conteúdo impróprio','outro'],true) && $details) { db()->prepare('INSERT INTO reports (reporter_id,reported_user_id,category,details) VALUES (:reporter,:target,:category,:details)')->execute(['reporter'=>$id,'target'=>$target?:null,'category'=>$category,'details'=>$details]); flash('success','Denúncia recebida. A equipe autorizada fará a triagem.'); }
+        $target=(int)($_POST['reported_user_id'] ?? 0); $content=(int)($_POST['reported_content_id'] ?? 0); $category=$_POST['category'] ?? ''; $details=trim($_POST['details'] ?? '');
+        if (in_array($category,['assédio','fraude','conteúdo impróprio','outro'],true) && $details) { db()->prepare('INSERT INTO reports (reporter_id,reported_user_id,reported_content_id,category,details) VALUES (:reporter,:target,:content,:category,:details)')->execute(['reporter'=>$id,'target'=>$target?:null,'content'=>$content?:null,'category'=>$category,'details'=>$details]); flash('success','Denúncia recebida. A equipe autorizada fará a triagem.'); }
         else flash('danger','Informe a categoria e os detalhes da denúncia.'); redirect('report');
     }
     if ($intent === 'moderate_report') {
@@ -154,6 +154,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             db()->prepare('UPDATE users SET status=:status WHERE id=:id')->execute(['status'=>$status,'id'=>$target]);
             db()->prepare("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,metadata) VALUES (:actor,'account_status_changed','user',:target,:meta)")->execute(['actor'=>$id,'target'=>$target,'meta'=>json_encode(['status'=>$status])]);
             flash('success','Estado da conta atualizado.');
+        }
+        redirect('moderation');
+    }
+    if ($intent === 'moderate_content') {
+        require_admin(); $content=(int)$_POST['content_id']; $status=$_POST['status'] ?? '';
+        if (in_array($status,['published','hidden','archived'],true)) {
+            db()->prepare('UPDATE content_posts SET status=:status WHERE id=:id')->execute(['status'=>$status,'id'=>$content]);
+            db()->prepare("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,metadata) VALUES (:actor,'content_status_changed','content',:content,:meta)")->execute(['actor'=>$id,'content'=>$content,'meta'=>json_encode(['status'=>$status])]);
+            flash('success','Estado do conteúdo atualizado.');
         }
         redirect('moderation');
     }

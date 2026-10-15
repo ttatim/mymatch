@@ -184,6 +184,7 @@ CREATE INDEX idx_match_messages_timeline ON match_messages (match_id, created_at
 CREATE TABLE reports (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, reporter_id BIGINT NOT NULL REFERENCES users(id),
   reported_user_id BIGINT REFERENCES users(id), category VARCHAR(50) NOT NULL, details TEXT,
+  reported_content_id BIGINT REFERENCES content_posts(id),
   status VARCHAR(20) NOT NULL DEFAULT 'open', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_reports_triage ON reports (status, created_at);
