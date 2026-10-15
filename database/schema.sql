@@ -135,6 +135,13 @@ CREATE TABLE content_accesses (
   content_id BIGINT NOT NULL REFERENCES content_posts(id), viewer_id BIGINT REFERENCES users(id),
   is_valid BOOLEAN NOT NULL DEFAULT false, accessed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE content_media (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  content_id BIGINT NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+  storage_key VARCHAR(120) NOT NULL UNIQUE, original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL, size_bytes BIGINT NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 52428800),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 CREATE INDEX idx_content_accesses_viewer ON content_accesses (viewer_id, content_id, accessed_at DESC);
 CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),
