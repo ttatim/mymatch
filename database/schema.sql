@@ -99,6 +99,19 @@ BEGIN
 END; $$;
 CREATE TRIGGER blocks_invalidate AFTER INSERT ON blocks FOR EACH ROW EXECUTE FUNCTION invalidate_blocked_interactions();
 
+-- Suspensão ou encerramento encerra exposição e impede novas interações.
+CREATE OR REPLACE FUNCTION disable_inactive_account_interactions() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.status <> 'active' AND OLD.status = 'active' THEN
+    UPDATE user_settings SET content_enabled=false, dating_enabled=false, integration_enabled=false, visitor_identity_consent=false WHERE user_id=NEW.id;
+    UPDATE relationship_profiles SET is_active=false WHERE user_id=NEW.id;
+    UPDATE relationship_interests SET status='invalidated', responded_at=NOW() WHERE from_user_id=NEW.id OR to_user_id=NEW.id;
+    UPDATE matches SET status='unmatched', ended_at=NOW() WHERE (user_low_id=NEW.id OR user_high_id=NEW.id) AND status='active';
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER users_disable_interactions AFTER UPDATE OF status ON users FOR EACH ROW EXECUTE FUNCTION disable_inactive_account_interactions();
+
 -- Conversa só existe em match ativo e somente os participantes podem enviar mensagens.
 CREATE OR REPLACE FUNCTION validate_match_message() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
