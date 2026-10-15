@@ -14,19 +14,25 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 - Planos pagos: Relacionamentos Plus (R$ 15,90/mês) e Conteúdo Plus (R$ 59,90/mês), por cobrança recorrente exclusivamente pelo Mercado Pago.
 - Marketplace de criadores: PagBank/PagSeguro é o único provedor; o ledger separa 7% para a carteira interna da plataforma (id 1), taxa administrativa do provedor e saldo do criador.
 - Compra, assinatura e consumo de conteúdo não concedem acesso pessoal.
+- Recuperação de senha com token de uso único, expiração de 30 minutos e resposta neutra para evitar enumeração de contas.
+- MFA opcional por TOTP, segredo cifrado com Sodium e dez códigos de recuperação de uso único.
 
 ## Como executar
 
 1. Crie o banco PostgreSQL: `createdb mymatch`.
 2. Execute `psql -d mymatch -f database/schema.sql` e, opcionalmente, `psql -d mymatch -f database/demo.sql`.
-3. Exporte as variáveis de `.env.example` no ambiente (não há carregador de `.env` por decisão de não usar dependências).
+3. Exporte as variáveis de `.env.example` no ambiente (não há carregador de `.env` por decisão de não usar dependências). Gere obrigatoriamente `APP_ENCRYPTION_KEY` com `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` antes de habilitar MFA.
 4. Rode `php -S localhost:8080` na raiz e acesse `http://localhost:8080`.
 
 Dados demonstrativos: `ana@mymatch.local` / `mymatch123`.
 
-Para instalações já criadas antes de um incremento, aplique as novas tabelas e triggers com a ferramenta de migração escolhida pelo time; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
+Para instalações já criadas antes deste incremento, aplique `database/migrations/20261015_security_access.sql`; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
 
 Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users SET is_admin = true WHERE email = 'ana@mymatch.local'.
+
+## Segurança de acesso
+
+O reset usa o envio de e-mail já configurado no PHP (`mail()`) e a URL de `APP_BASE_URL`; em produção, o servidor deve possuir um transporte de e-mail transacional configurado. A aplicação nunca revela se um e-mail possui conta. MFA pode ser habilitado em **Segurança de acesso** após login. Não registre, exponha em logs ou compartilhe `APP_ENCRYPTION_KEY`, chaves TOTP ou códigos de recuperação.
 
 No macOS com Homebrew, instale e inicie PostgreSQL antes da prévia com: brew install postgresql@16; brew services start postgresql@16.
 
