@@ -107,6 +107,9 @@ CREATE TABLE relationship_profiles (
   display_name VARCHAR(80) NOT NULL,
   bio TEXT, photo_url VARCHAR(500), city VARCHAR(100), relationship_goal VARCHAR(120),
   show_city BOOLEAN NOT NULL DEFAULT true, is_active BOOLEAN NOT NULL DEFAULT false,
+  discovery_min_age SMALLINT NOT NULL DEFAULT 18 CHECK (discovery_min_age BETWEEN 18 AND 99),
+  discovery_max_age SMALLINT NOT NULL DEFAULT 99 CHECK (discovery_max_age BETWEEN 18 AND 99),
+  discovery_city VARCHAR(100), CHECK (discovery_min_age <= discovery_max_age),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE content_posts (
