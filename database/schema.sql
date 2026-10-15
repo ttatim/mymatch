@@ -99,12 +99,14 @@ CREATE TABLE wallet_ledger (
 CREATE TABLE content_profiles (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   display_name VARCHAR(80) NOT NULL,
-  bio TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  bio TEXT, photo_url VARCHAR(500), is_public BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE relationship_profiles (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   display_name VARCHAR(80) NOT NULL,
-  bio TEXT, city VARCHAR(100), is_active BOOLEAN NOT NULL DEFAULT false,
+  bio TEXT, photo_url VARCHAR(500), city VARCHAR(100), relationship_goal VARCHAR(120),
+  show_city BOOLEAN NOT NULL DEFAULT true, is_active BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE content_posts (
