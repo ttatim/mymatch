@@ -167,6 +167,30 @@ CREATE TABLE content_comments (
   status VARCHAR(20) NOT NULL DEFAULT 'published', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (length(trim(body)) > 0)
 );
+CREATE TABLE hashtags (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  slug VARCHAR(80) NOT NULL UNIQUE CHECK (slug ~ '^[a-z0-9_]+$'),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE content_hashtags (
+  content_id BIGINT NOT NULL REFERENCES content_posts(id) ON DELETE CASCADE,
+  hashtag_id BIGINT NOT NULL REFERENCES hashtags(id) ON DELETE CASCADE,
+  PRIMARY KEY(content_id,hashtag_id)
+);
+CREATE INDEX content_hashtags_tag ON content_hashtags(hashtag_id,content_id);
+CREATE TABLE communities (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  owner_id BIGINT NOT NULL REFERENCES users(id),
+  name VARCHAR(100) NOT NULL, slug VARCHAR(100) NOT NULL UNIQUE,
+  description TEXT, visibility VARCHAR(20) NOT NULL DEFAULT 'public' CHECK (visibility IN ('public','private')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE community_members (
+  community_id BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('owner','moderator','member')),
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), PRIMARY KEY(community_id,user_id)
+);
 CREATE INDEX idx_content_accesses_viewer ON content_accesses (viewer_id, content_id, accessed_at DESC);
 CREATE TABLE blocks (
   blocker_id BIGINT NOT NULL REFERENCES users(id), blocked_id BIGINT NOT NULL REFERENCES users(id),

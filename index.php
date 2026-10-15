@@ -118,6 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $postStatement=db()->prepare("INSERT INTO content_posts (producer_id,title,description,access_type,price_cents,is_adult,visibility,status) VALUES (:id,:title,:description,:access,:price,:adult,:visibility,'published') RETURNING id");
             $postStatement->execute(['id'=>$id,'title'=>trim($_POST['title']),'description'=>trim($_POST['description']),'access'=>$_POST['access_type'],'price'=>$price,'adult'=>isset($_POST['is_adult']),'visibility'=>$_POST['visibility']]);
             $postId=(int)$postStatement->fetchColumn();
+            preg_match_all('/#([\p{L}\p{N}_]{2,80})/u', $_POST['description'] ?? '', $tagMatches);
+            foreach (array_unique($tagMatches[1]) as $tag) {
+                $slug = strtolower($tag);
+                db()->prepare('INSERT INTO hashtags(slug) VALUES (:slug) ON CONFLICT (slug) DO NOTHING')->execute(['slug'=>$slug]);
+                db()->prepare('INSERT INTO content_hashtags(content_id,hashtag_id) SELECT :content,id FROM hashtags WHERE slug=:slug ON CONFLICT DO NOTHING')->execute(['content'=>$postId,'slug'=>$slug]);
+            }
             if (!empty($_FILES['media']['tmp_name'])) {
                 if ($_FILES['media']['error'] !== UPLOAD_ERR_OK || $_FILES['media']['size'] > 52428800) throw new RuntimeException('O arquivo deve ter até 50 MB.');
                 $mime=(new finfo(FILEINFO_MIME_TYPE))->file($_FILES['media']['tmp_name']);
