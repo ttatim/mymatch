@@ -5,10 +5,13 @@ session_name('mymatch_session');
 session_start([
     'cookie_httponly' => true,
     'cookie_samesite' => 'Lax',
-    'cookie_secure' => isset($_SERVER['HTTPS']),
+    'cookie_secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'use_only_cookies' => true,
+    'use_strict_mode' => true,
 ]);
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/security.php';
 
 function e(?string $value): string
 {
@@ -23,7 +26,8 @@ function csrf_token(): string
 
 function verify_csrf(): void
 {
-    if (!hash_equals($_SESSION['csrf'] ?? '', $_POST['csrf'] ?? '')) {
+    $submitted = $_POST['csrf'] ?? '';
+    if (!is_string($submitted) || !hash_equals($_SESSION['csrf'] ?? '', $submitted)) {
         http_response_code(419);
         exit('Sessão expirada. Atualize a página e tente novamente.');
     }
