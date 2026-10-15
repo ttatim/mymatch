@@ -60,6 +60,29 @@ function require_login(): array
     return $user;
 }
 
+function current_plan(int $userId): string
+{
+    $statement = db()->prepare('SELECT plan FROM account_plans WHERE user_id=:id');
+    $statement->execute(['id' => $userId]);
+    return $statement->fetchColumn() ?: 'relationship_free';
+}
+
+function require_content_access(int $userId): void
+{
+    if (!in_array(current_plan($userId), ['content_free', 'content_plus', 'creator'], true)) {
+        flash('warning', 'Selecione um plano de conteúdo para acessar esta área.');
+        redirect('billing');
+    }
+}
+
+function require_relationship_plus(int $userId): void
+{
+    if (current_plan($userId) !== 'relationship_plus') {
+        flash('warning', 'Matches e conversas exigem o plano Relacionamentos Plus.');
+        redirect('billing');
+    }
+}
+
 function flash(string $type, string $message): void
 {
     $_SESSION['flash'][] = ['type' => $type, 'message' => $message];
