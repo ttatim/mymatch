@@ -1,9 +1,14 @@
 -- MyMatch: PostgreSQL 16+. As regras críticas são reforçadas também na camada PHP.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TYPE account_status AS ENUM ('active', 'suspended', 'closed');
 CREATE TYPE access_kind AS ENUM ('free', 'single_purchase', 'subscription');
 CREATE TYPE interest_origin AS ENUM ('discovery', 'content_visit');
 CREATE TYPE interest_status AS ENUM ('pending', 'accepted', 'dismissed', 'invalidated', 'expired');
 CREATE TYPE match_status AS ENUM ('active', 'unmatched', 'blocked');
+CREATE TYPE plan_code AS ENUM ('relationship_free', 'content_free', 'relationship_plus', 'content_plus', 'creator');
+CREATE TYPE subscription_status AS ENUM ('pending', 'active', 'past_due', 'cancelled');
+CREATE TYPE payment_provider AS ENUM ('pagseguro', 'mercadopago');
+CREATE TYPE payment_status AS ENUM ('pending', 'approved', 'rejected', 'refunded');
 
 CREATE TABLE users (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -24,6 +29,61 @@ CREATE TABLE user_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (NOT integration_enabled OR dating_enabled)
 );
+CREATE TABLE plans (
+  code plan_code PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  monthly_price_cents INTEGER NOT NULL DEFAULT 0 CHECK (monthly_price_cents >= 0),
+  description TEXT NOT NULL,
+  is_public BOOLEAN NOT NULL DEFAULT true
+);
+INSERT INTO plans (code,name,monthly_price_cents,description) VALUES
+  ('relationship_free','Relacionamentos gratuito',0,'Acesso de relacionamento gratuito conforme regras de descoberta disponíveis.'),
+  ('content_free','Conteúdo gratuito',0,'Rede social de conteúdo: até 10 publicações por mês e perfis públicos.'),
+  ('relationship_plus','Relacionamentos Plus',1590,'Perfis, fotos, match e conversas por cobrança mensal recorrente.'),
+  ('content_plus','Conteúdo Plus',5990,'Acesso pago à plataforma de conteúdo por cobrança mensal recorrente.'),
+  ('creator','Criador de conteúdo',0,'Monetização definida pelo criador, com divisão de marketplace.');
+CREATE TABLE subscriptions (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  plan plan_code NOT NULL REFERENCES plans(code),
+  provider payment_provider,
+  provider_subscription_id VARCHAR(255) UNIQUE,
+  status subscription_status NOT NULL DEFAULT 'pending',
+  started_at TIMESTAMPTZ, renews_at TIMESTAMPTZ, cancelled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX subscriptions_one_active_plan ON subscriptions(user_id, plan) WHERE status IN ('pending','active','past_due');
+CREATE TABLE payment_transactions (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  subscription_id BIGINT REFERENCES subscriptions(id),
+  provider payment_provider NOT NULL,
+  provider_payment_id VARCHAR(255) UNIQUE,
+  external_reference UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+  provider_fee_cents INTEGER NOT NULL DEFAULT 0 CHECK (provider_fee_cents >= 0),
+  status payment_status NOT NULL DEFAULT 'pending',
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), approved_at TIMESTAMPTZ
+);
+CREATE TABLE wallets (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT UNIQUE REFERENCES users(id),
+  kind VARCHAR(20) NOT NULL CHECK (kind IN ('platform','creator')),
+  available_cents BIGINT NOT NULL DEFAULT 0 CHECK (available_cents >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK ((id = 1 AND kind = 'platform' AND user_id IS NULL) OR (id <> 1 AND kind = 'creator' AND user_id IS NOT NULL))
+);
+INSERT INTO wallets (id,user_id,kind) VALUES (1,NULL,'platform');
+CREATE TABLE wallet_ledger (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  wallet_id BIGINT NOT NULL REFERENCES wallets(id),
+  transaction_id BIGINT NOT NULL REFERENCES payment_transactions(id),
+  entry_type VARCHAR(20) NOT NULL CHECK (entry_type IN ('platform_fee','creator_credit','withdrawal','reversal')),
+  amount_cents BIGINT NOT NULL CHECK (amount_cents <> 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (wallet_id,transaction_id,entry_type)
+);
 CREATE TABLE content_profiles (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   display_name VARCHAR(80) NOT NULL,
@@ -42,6 +102,7 @@ CREATE TABLE content_posts (
   is_adult BOOLEAN NOT NULL DEFAULT false, visibility VARCHAR(20) NOT NULL DEFAULT 'public',
   status VARCHAR(20) NOT NULL DEFAULT 'draft', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX content_posts_monthly_limit ON content_posts (producer_id, created_at) WHERE status <> 'archived';
 CREATE TABLE content_accesses (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   content_id BIGINT NOT NULL REFERENCES content_posts(id), viewer_id BIGINT REFERENCES users(id),
@@ -111,6 +172,23 @@ BEGIN
   RETURN NEW;
 END; $$;
 CREATE TRIGGER users_disable_interactions AFTER UPDATE OF status ON users FOR EACH ROW EXECUTE FUNCTION disable_inactive_account_interactions();
+
+-- A confirmação de marketplace credita 7% à carteira interna id=1 e 93% ao criador.
+CREATE OR REPLACE FUNCTION distribute_marketplace_payment(payment_id BIGINT, creator_id BIGINT) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE gross INTEGER; provider_fee INTEGER; fee INTEGER; creator_wallet BIGINT;
+BEGIN
+  SELECT amount_cents,provider_fee_cents INTO gross,provider_fee FROM payment_transactions WHERE id=payment_id AND status='approved';
+  IF gross IS NULL THEN RAISE EXCEPTION 'Pagamento não aprovado'; END IF;
+  fee := ROUND(gross * 0.07);
+  IF gross - fee - provider_fee < 0 THEN RAISE EXCEPTION 'Taxas excedem o valor do pagamento'; END IF;
+  INSERT INTO wallets(id,user_id,kind) VALUES (creator_id + 1000000,creator_id,'creator') ON CONFLICT (user_id) DO NOTHING;
+  SELECT id INTO creator_wallet FROM wallets WHERE user_id=creator_id;
+  INSERT INTO wallet_ledger(wallet_id,transaction_id,entry_type,amount_cents) VALUES
+    (1,payment_id,'platform_fee',fee),(creator_wallet,payment_id,'creator_credit',gross-fee-provider_fee)
+  ON CONFLICT DO NOTHING;
+  UPDATE wallets SET available_cents=available_cents+fee WHERE id=1;
+  UPDATE wallets SET available_cents=available_cents+(gross-fee-provider_fee) WHERE id=creator_wallet;
+END; $$;
 
 -- Conversa só existe em match ativo e somente os participantes podem enviar mensagens.
 CREATE OR REPLACE FUNCTION validate_match_message() RETURNS trigger LANGUAGE plpgsql AS $$
