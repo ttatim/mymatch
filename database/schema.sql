@@ -10,6 +10,7 @@ CREATE TABLE users (
   email VARCHAR(254) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   birth_date DATE NOT NULL,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
   status account_status NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years')
