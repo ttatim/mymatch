@@ -7,7 +7,7 @@ CREATE TYPE interest_status AS ENUM ('pending', 'accepted', 'dismissed', 'invali
 CREATE TYPE match_status AS ENUM ('active', 'unmatched', 'blocked');
 CREATE TYPE plan_code AS ENUM ('relationship_free', 'content_free', 'relationship_plus', 'content_plus', 'creator');
 CREATE TYPE subscription_status AS ENUM ('pending', 'active', 'past_due', 'cancelled');
-CREATE TYPE payment_provider AS ENUM ('pagseguro', 'mercadopago');
+CREATE TYPE payment_provider AS ENUM ('pagseguro', 'mercadopago', 'bitcoin', 'ethereum');
 CREATE TYPE payment_status AS ENUM ('pending', 'approved', 'rejected', 'refunded');
 CREATE TYPE payment_context AS ENUM ('subscription', 'marketplace');
 
@@ -116,10 +116,30 @@ CREATE TABLE payment_transactions (
   payload JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), approved_at TIMESTAMPTZ,
   CHECK (
-    (context = 'subscription' AND subscription_id IS NOT NULL AND provider = 'mercadopago')
+    (context = 'subscription' AND subscription_id IS NOT NULL AND provider IN ('mercadopago','bitcoin','ethereum'))
     OR (context = 'marketplace' AND subscription_id IS NULL AND provider = 'pagseguro')
   )
 );
+CREATE TABLE crypto_wallet_addresses (
+  asset payment_provider PRIMARY KEY CHECK (asset IN ('bitcoin','ethereum')),
+  address VARCHAR(160) NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  updated_by BIGINT REFERENCES users(id),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE crypto_payment_requests (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  transaction_id BIGINT NOT NULL UNIQUE REFERENCES payment_transactions(id) ON DELETE CASCADE,
+  asset payment_provider NOT NULL CHECK (asset IN ('bitcoin','ethereum')),
+  destination_address VARCHAR(160) NOT NULL,
+  transaction_hash VARCHAR(130) UNIQUE,
+  status VARCHAR(20) NOT NULL DEFAULT 'awaiting_payment' CHECK (status IN ('awaiting_payment','submitted','confirmed','rejected','expired')),
+  reviewed_by BIGINT REFERENCES users(id),
+  submitted_at TIMESTAMPTZ,
+  reviewed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX crypto_payment_requests_review ON crypto_payment_requests(status,created_at);
 CREATE TABLE webhook_events (
   id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   provider payment_provider NOT NULL,

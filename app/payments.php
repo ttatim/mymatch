@@ -81,3 +81,21 @@ function mercadopago_sync_subscription(string $providerSubscriptionId, array $re
     if ($localStatus === 'active') db()->prepare('UPDATE account_plans SET plan=:plan,updated_at=NOW() WHERE user_id=:user')->execute(['plan' => $local['plan'], 'user' => $local['user_id']]);
     if ($localStatus === 'cancelled') db()->prepare("UPDATE account_plans SET plan=CASE WHEN plan='relationship_plus' THEN 'relationship_free' WHEN plan='content_plus' THEN 'content_free' ELSE plan END,updated_at=NOW() WHERE user_id=:user AND plan=:plan")->execute(['user' => $local['user_id'], 'plan' => $local['plan']]);
 }
+
+function crypto_address_is_valid(string $asset, string $address): bool
+{
+    return match ($asset) {
+        'bitcoin' => (bool) preg_match('/^(bc1[ac-hj-np-z02-9]{11,71}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/', $address),
+        'ethereum' => (bool) preg_match('/^0x[a-fA-F0-9]{40}$/', $address),
+        default => false,
+    };
+}
+
+function crypto_hash_is_valid(string $asset, string $hash): bool
+{
+    return match ($asset) {
+        'bitcoin' => (bool) preg_match('/^[a-fA-F0-9]{64}$/', $hash),
+        'ethereum' => (bool) preg_match('/^0x[a-fA-F0-9]{64}$/', $hash),
+        default => false,
+    };
+}
