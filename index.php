@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require __DIR__ . '/app/bootstrap.php';
 require __DIR__ . '/app/layout.php';
+require __DIR__ . '/app/payments.php';
 
 try {
     db();
@@ -140,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($intent === 'start_subscription') {
         $plan=$_POST['plan'] ?? ''; $provider='mercadopago';
+        $subscriptionId=0;
         $st=db()->prepare("SELECT monthly_price_cents FROM plans WHERE code=:plan AND code IN ('relationship_plus','content_plus')");
         $st->execute(['plan'=>$plan]); $price=$st->fetchColumn();
         if (!$price || !in_array($provider,['pagseguro','mercadopago'],true)) { flash('danger','Plano ou meio de pagamento inválido.'); redirect('billing'); }
@@ -148,9 +150,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $st=db()->prepare("INSERT INTO subscriptions(user_id,plan,provider,status) VALUES (:user,:plan,:provider,'pending') RETURNING id");
             $st->execute(['user'=>$id,'plan'=>$plan,'provider'=>$provider]); $subscriptionId=$st->fetchColumn();
             db()->prepare("INSERT INTO payment_transactions(user_id,subscription_id,provider,context,amount_cents,status) VALUES (:user,:subscription,:provider,'subscription',:amount,'pending')")->execute(['user'=>$id,'subscription'=>$subscriptionId,'provider'=>$provider,'amount'=>$price]);
+            $referenceStatement=db()->prepare('SELECT external_reference FROM payment_transactions WHERE subscription_id=:subscription');
+            $referenceStatement->execute(['subscription'=>$subscriptionId]);
+            $reference=(string)$referenceStatement->fetchColumn();
             db()->commit();
-            flash('warning','Intenção registrada. Configure as credenciais e o webhook do '.$provider.' para abrir o checkout e ativar a assinatura após a confirmação.');
+            $checkout=mercadopago_create_subscription($reference,(string)$user['email'],(string)$plan, (int)$price);
+            $checkoutUrl=$checkout['init_point'] ?? null;
+            $checkoutHost=is_string($checkoutUrl) ? parse_url($checkoutUrl,PHP_URL_HOST) : null;
+            if (!is_string($checkout['id'] ?? null) || !is_string($checkoutUrl) || !in_array($checkoutHost,['www.mercadopago.com','www.mercadopago.com.br','sandbox.mercadopago.com'],true)) throw new RuntimeException('Checkout remoto indisponível.');
+            db()->prepare('UPDATE subscriptions SET provider_subscription_id=:provider WHERE id=:id')->execute(['provider'=>$checkout['id'],'id'=>$subscriptionId]);
+            header('Location: '.$checkoutUrl, true, 303); exit;
         } catch (PDOException) { if(db()->inTransaction())db()->rollBack(); flash('warning','Já existe uma assinatura pendente ou ativa para este plano.'); }
+        catch (Throwable) { if(db()->inTransaction())db()->rollBack(); if($subscriptionId){db()->prepare("UPDATE subscriptions SET status='cancelled',cancelled_at=NOW() WHERE id=:id AND status='pending'")->execute(['id'=>$subscriptionId]);db()->prepare("UPDATE payment_transactions SET status='rejected' WHERE subscription_id=:id AND status='pending'")->execute(['id'=>$subscriptionId]);} flash('danger','Não foi possível abrir o checkout seguro. Nenhum plano foi ativado.'); }
         redirect('billing');
     }
     if ($intent === 'select_free_plan') {
