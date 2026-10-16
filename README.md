@@ -40,6 +40,12 @@ Defina `APP_ENV=production`, `APP_ENCRYPTION_KEY`, `APP_BASE_URL` com HTTPS e `U
 
 Use `GET /health.php` para health checks do balanceador ou monitoramento. A resposta é somente `{"status":"ok"}` ou `{"status":"unavailable"}` e não expõe detalhes de conexão.
 
+### Contêineres
+
+`Dockerfile` prepara Apache/PHP 8.3 com `pdo_pgsql` e bloqueia acesso direto ao diretório `storage`. Para uma prévia local completa, gere uma chave com `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`, substitua `APP_ENCRYPTION_KEY` em `compose.local.yml` e execute `docker compose -f compose.local.yml up --build`.
+
+O arquivo de Compose é exclusivo para desenvolvimento: contém credenciais locais e não deve ser usado em produção. Para produção, utilize a imagem construída pelo `Dockerfile`, injete segredos pelo orquestrador, monte `UPLOAD_DIRECTORY=/var/lib/mymatch/uploads` em volume privado e conecte a um PostgreSQL gerenciado com TLS.
+
 No macOS com Homebrew, instale e inicie PostgreSQL antes da prévia com: brew install postgresql@16; brew services start postgresql@16.
 
 ## Pagamentos
