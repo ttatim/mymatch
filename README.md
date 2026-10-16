@@ -42,7 +42,9 @@ Tokens e senhas de integrações operacionais devem ser gravados na tabela `syst
 
 ## Triagem de idade e segurança com Mistral AI
 
-Cadastre a chave como `mistral.api_key` no cofre. Publicações entram em `pending_review` e permanecem inacessíveis até a triagem; execute `php bin/process-content-safety.php <content-id>` por uma fila/worker restrito. O worker envia apenas imagem elegível à API Vision e aprova exclusivamente uma resposta inequívoca; sinais de menor de idade, sexualização, coerção, exploração, violência ou incerteza levam a `manual_review`.
+Cadastre a chave como `mistral.api_key` no cofre. Publicações entram em `pending_review` e permanecem inacessíveis até a triagem. Para um item específico, execute `php bin/process-content-safety.php <content-id>`; para a fila, agende um worker restrito, por exemplo `* * * * * php /caminho/mymatch/bin/process-pending-content-safety.php 10`. O worker envia apenas imagem elegível à API Vision e aprova exclusivamente uma resposta inequívoca; sinais de menor de idade, sexualização, coerção, exploração, violência ou incerteza levam a `manual_review`.
+
+Um administrador autorizado decide os itens bloqueados em `index.php?page=content-review`, disponível também a partir da triagem de denúncias. A abertura administrativa da mídia é gravada em auditoria. Restrinja essa função a uma equipe treinada, aplique dupla revisão para casos de alto risco e mantenha um procedimento humano de escalonamento.
 
 O módulo inclui `mistral_ocr_document()` para documentos de verificação e a tabela `identity_verification_documents`, mas OCR/IA não constituem comprovação de maioridade nem substituem revisão humana, confirmação de identidade, política de retenção, canal de denúncia e protocolo legal de preservação/escalonamento. Não envie documentos ou mídia a provedores externos sem base legal, política de privacidade e contrato de tratamento de dados adequados.
 
