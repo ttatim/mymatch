@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mymatch
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local_only_change_me
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/demo.sql:/docker-entrypoint-initdb.d/02-demo.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mymatch"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: mymatch
+      DB_USER: postgres
+      DB_PASSWORD: local_only_change_me
+      DB_SSLMODE: prefer
+      APP_BASE_URL: http://localhost:8080
+      APP_ENCRYPTION_KEY: replace_with_base64_32_byte_key
+      UPLOAD_DIRECTORY: /var/lib/mymatch/uploads
+    volumes:
+      - mymatch_uploads:/var/lib/mymatch/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  mymatch_uploads:
