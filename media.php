@@ -16,13 +16,14 @@ if (!$media) {
     http_response_code(403);
     exit('Mídia indisponível.');
 }
-$path = __DIR__ . '/storage/uploads/' . $media['storage_key'];
-if (!is_file($path)) {
+$path = media_storage_path($media['storage_key']);
+if (!$path || !is_file($path)) {
     http_response_code(404);
     exit('Arquivo não encontrado.');
 }
 header('Content-Type: ' . $media['mime_type']);
 header('Content-Length: ' . filesize($path));
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: private, no-store, max-age=0');
 header('Content-Disposition: inline; filename="' . rawurlencode($media['original_name']) . '"');
 readfile($path);

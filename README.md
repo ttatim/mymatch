@@ -34,6 +34,10 @@ Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users
 
 O reset usa o envio de e-mail já configurado no PHP (`mail()`) e a URL de `APP_BASE_URL`; em produção, o servidor deve possuir um transporte de e-mail transacional configurado. A aplicação nunca revela se um e-mail possui conta. MFA pode ser habilitado em **Segurança de acesso** após login. Não registre, exponha em logs ou compartilhe `APP_ENCRYPTION_KEY`, chaves TOTP ou códigos de recuperação.
 
+## Implantação
+
+Defina `APP_ENV=production`, `APP_ENCRYPTION_KEY`, `APP_BASE_URL` com HTTPS e `UPLOAD_DIRECTORY` como um diretório absoluto **fora da raiz web**, gravável apenas pelo usuário do PHP. A aplicação recusa uploads em produção se essa configuração estiver ausente ou apontar para dentro do projeto. Execute as migrações pendentes antes de liberar tráfego e configure um transporte de e-mail transacional no PHP para a recuperação de senha.
+
 No macOS com Homebrew, instale e inicie PostgreSQL antes da prévia com: brew install postgresql@16; brew services start postgresql@16.
 
 ## Pagamentos

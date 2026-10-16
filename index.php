@@ -176,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($intent === 'publish') {
         if (!in_array(current_plan($id),['content_free','creator'],true)) { flash('warning','Seu plano atual não permite publicar conteúdo.'); redirect('billing'); }
+        $storedPath = null;
         try {
             db()->beginTransaction();
             $price=($_POST['access_type'] ?? 'free') === 'free' ? null : (int)round(((float)str_replace(',','.',$_POST['price'] ?? '0'))*100);
@@ -191,15 +192,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (!empty($_FILES['media']['tmp_name'])) {
                 if ($_FILES['media']['error'] !== UPLOAD_ERR_OK || $_FILES['media']['size'] > 52428800) throw new RuntimeException('O arquivo deve ter até 50 MB.');
+                if (!is_uploaded_file($_FILES['media']['tmp_name'])) throw new RuntimeException('Upload inválido.');
                 $mime=(new finfo(FILEINFO_MIME_TYPE))->file($_FILES['media']['tmp_name']);
                 $allowed=['image/jpeg','image/png','image/webp','video/mp4'];
                 if (!in_array($mime,$allowed,true)) throw new RuntimeException('Tipo de arquivo não permitido.');
+                if (str_starts_with($mime, 'image/') && (($imageInfo=@getimagesize($_FILES['media']['tmp_name'])) === false || $imageInfo['mime'] !== $mime)) throw new RuntimeException('Imagem inválida.');
                 $key=bin2hex(random_bytes(24));
-                if (!move_uploaded_file($_FILES['media']['tmp_name'],__DIR__.'/storage/uploads/'.$key)) throw new RuntimeException('Não foi possível armazenar o arquivo.');
+                $storedPath=media_storage_path($key);
+                if (!$storedPath || !move_uploaded_file($_FILES['media']['tmp_name'],$storedPath)) throw new RuntimeException('Não foi possível armazenar o arquivo.');
+                chmod($storedPath, 0640);
                 db()->prepare('INSERT INTO content_media(content_id,storage_key,original_name,mime_type,size_bytes) VALUES (:post,:key,:name,:mime,:size)')->execute(['post'=>$postId,'key'=>$key,'name'=>basename($_FILES['media']['name']),'mime'=>$mime,'size'=>$_FILES['media']['size']]);
             }
             db()->commit(); flash('success', 'Publicação criada.');
-        } catch (Throwable $exception) { if(db()->inTransaction())db()->rollBack(); flash('warning',$exception instanceof RuntimeException?$exception->getMessage():'Limite mensal do plano gratuito atingido ou plano sem permissão de publicação.'); }
+        } catch (Throwable $exception) { if(db()->inTransaction())db()->rollBack(); if($storedPath && is_file($storedPath)) unlink($storedPath); flash('warning',$exception instanceof RuntimeException?$exception->getMessage():'Limite mensal do plano gratuito atingido ou plano sem permissão de publicação.'); }
         redirect('content');
     }
     if ($intent === 'like') {
