@@ -35,3 +35,28 @@ function mistral_ocr_document(string $path, string $mime): array
     $type = str_starts_with($mime, 'image/') ? 'image_url' : 'document_url';
     return mistral_request('/v1/ocr', ['model'=>'mistral-ocr-latest','document'=>['type'=>$type, $type=>'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($path))], 'confidence_scores_granularity'=>'page']);
 }
+
+function process_content_safety_review(int $contentId): string
+{
+    $st = db()->prepare('SELECT cp.status,cm.storage_key,cm.mime_type FROM content_posts cp LEFT JOIN content_media cm ON cm.content_id=cp.id WHERE cp.id=:id ORDER BY cm.id LIMIT 1');
+    $st->execute(['id' => $contentId]);
+    $content = $st->fetch();
+    if (!$content || $content['status'] !== 'pending_review') return 'skipped';
+
+    $result = !empty($content['storage_key'])
+        ? mistral_image_safety_assessment((string) media_storage_path($content['storage_key']), (string) $content['mime_type'])
+        : ['decision' => 'manual_review', 'signals' => ['no_image_for_automated_review']];
+
+    db()->beginTransaction();
+    try {
+        db()->prepare("INSERT INTO content_safety_reviews(content_id,provider,decision,signals,reviewed_at) VALUES (:id,'mistral',:decision,:signals,NOW()) ON CONFLICT (content_id) DO UPDATE SET provider=EXCLUDED.provider,decision=EXCLUDED.decision,signals=EXCLUDED.signals,reviewed_at=NOW()")
+            ->execute(['id' => $contentId, 'decision' => $result['decision'], 'signals' => json_encode($result['signals'], JSON_THROW_ON_ERROR)]);
+        $status = $result['decision'] === 'approved' ? 'published' : 'manual_review';
+        db()->prepare('UPDATE content_posts SET status=:status WHERE id=:id AND status=:pending')->execute(['status' => $status, 'id' => $contentId, 'pending' => 'pending_review']);
+        db()->commit();
+        return $result['decision'];
+    } catch (Throwable $exception) {
+        if (db()->inTransaction()) db()->rollBack();
+        throw $exception;
+    }
+}
