@@ -53,6 +53,11 @@ function mercadopago_fetch_subscription(string $providerSubscriptionId): array
     return mercadopago_request('GET', '/preapproval/' . rawurlencode($providerSubscriptionId));
 }
 
+function mercadopago_cancel_subscription(string $providerSubscriptionId): array
+{
+    return mercadopago_request('PUT', '/preapproval/' . rawurlencode($providerSubscriptionId), ['status' => 'cancelled']);
+}
+
 function mercadopago_sync_subscription(string $providerSubscriptionId, array $remote): void
 {
     $reference = $remote['external_reference'] ?? '';
