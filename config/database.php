@@ -9,14 +9,23 @@ function db(): PDO
         return $connection;
     }
 
-    $dsn = sprintf(
-        'pgsql:host=%s;port=%s;dbname=%s',
-        getenv('DB_HOST') ?: '127.0.0.1',
-        getenv('DB_PORT') ?: '5432',
-        getenv('DB_NAME') ?: 'mymatch'
-    );
+    $environment = strtolower(getenv('APP_ENV') ?: 'development');
+    $host = getenv('DB_HOST') ?: '127.0.0.1';
+    $port = getenv('DB_PORT') ?: '5432';
+    $name = getenv('DB_NAME') ?: 'mymatch';
+    $user = getenv('DB_USER') ?: 'postgres';
+    $password = getenv('DB_PASSWORD') ?: '';
+    $sslMode = strtolower(getenv('DB_SSLMODE') ?: ($environment === 'production' ? 'require' : 'prefer'));
+    $allowedSslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
 
-    $connection = new PDO($dsn, getenv('DB_USER') ?: 'postgres', getenv('DB_PASSWORD') ?: '');
+    if (!in_array($sslMode, $allowedSslModes, true)) throw new RuntimeException('DB_SSLMODE inválido.');
+    if ($environment === 'production' && ($password === '' || in_array($sslMode, ['disable', 'allow', 'prefer'], true))) {
+        throw new RuntimeException('Produção exige senha de banco e DB_SSLMODE seguro.');
+    }
+
+    $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s;connect_timeout=5;sslmode=%s', $host, $port, $name, $sslMode);
+
+    $connection = new PDO($dsn, $user, $password, [PDO::ATTR_EMULATE_PREPARES => false]);
     $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 
