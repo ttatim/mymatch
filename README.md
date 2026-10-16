@@ -70,6 +70,8 @@ O Mercado Pago processa exclusivamente assinaturas dos usuários. O PagBank/PagS
 
 Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do PagSeguro e credita o restante ao criador. A ativação do marketplace PagSeguro exige o credenciamento de marketplace/split da conta da plataforma e as credenciais próprias desse contrato; até essa integração ser homologada, compras de conteúdo permanecem pendentes e não concedem acesso.
 
+Criadores informam o identificador de marketplace PagBank em **Planos e assinaturas → Configurar recebimentos**. A operação deve validar o vínculo em index.php?page=creator-payout-review antes de ativar a conta. Publicações e compras monetizadas ficam bloqueadas enquanto o recebedor não estiver ativo.
+
 ## Próximos incrementos
 
 Gate real de verificação de idade, pagamentos, upload seguro, mensageria pós-match, fila de moderação, auditoria e políticas LGPD devem ser implantados antes de produção.
