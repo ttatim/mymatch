@@ -120,6 +120,15 @@ CREATE TABLE payment_transactions (
     OR (context = 'marketplace' AND subscription_id IS NULL AND provider = 'pagseguro')
   )
 );
+CREATE TABLE webhook_events (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  provider payment_provider NOT NULL,
+  request_id VARCHAR(255) NOT NULL,
+  resource_id VARCHAR(255) NOT NULL,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  UNIQUE(provider,request_id)
+);
 CREATE TABLE wallets (
   id BIGINT PRIMARY KEY,
   user_id BIGINT UNIQUE REFERENCES users(id),

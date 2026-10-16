@@ -64,7 +64,9 @@ No macOS com Homebrew, instale e inicie PostgreSQL antes da prévia com: brew in
 
 ## Pagamentos
 
-O Mercado Pago processa exclusivamente assinaturas dos usuários. O PagBank/PagSeguro processa exclusivamente pagamentos marketplace de criadores. A ativação real exige credenciais, checkout hospedado e webhook autenticado de cada provedor; planos pagos não são liberados com uma transação pendente. Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do PagSeguro e credita o restante ao criador.
+O Mercado Pago processa exclusivamente assinaturas dos usuários. O PagBank/PagSeguro processa exclusivamente pagamentos marketplace de criadores. Planos pagos usam o checkout hospedado do Mercado Pago e só são ativados após confirmação do estado remoto. Cadastre no cofre `mercadopago.access_token` e `mercadopago.webhook_secret`, então configure no painel do provedor o evento `subscription_preapproval` apontando para `https://SEU-DOMINIO/webhooks/mercadopago.php`. O endpoint valida a assinatura HMAC, limita o tempo de aceitação, deduplica o identificador de entrega e consulta novamente a assinatura no Mercado Pago antes de alterar o plano.
+
+Para pagamentos de criador, a função de banco distribui 7% à carteira da plataforma id 1, deduz a taxa efetiva do PagSeguro e credita o restante ao criador. A ativação do marketplace PagSeguro exige o credenciamento de marketplace/split da conta da plataforma e as credenciais próprias desse contrato; até essa integração ser homologada, compras de conteúdo permanecem pendentes e não concedem acesso.
 
 ## Próximos incrementos
 
