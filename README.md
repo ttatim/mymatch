@@ -26,7 +26,7 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 
 Dados demonstrativos: `ana@mymatch.local` / `mymatch123`.
 
-Para instalações já criadas antes deste incremento, aplique `database/migrations/20261015_security_access.sql` e `database/migrations/20261016_system_secrets.sql`; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
+Para instalações já criadas antes deste incremento, aplique `database/migrations/20261015_security_access.sql`, `database/migrations/20261016_mfa_replay_protection.sql` e `database/migrations/20261016_system_secrets.sql`; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
 
 Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users SET is_admin = true WHERE email = 'ana@mymatch.local'.
 

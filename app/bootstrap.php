@@ -2,16 +2,26 @@
 declare(strict_types=1);
 
 session_name('mymatch_session');
+$productionMode = strtolower(getenv('APP_ENV') ?: 'production') !== 'development';
 session_start([
     'cookie_httponly' => true,
     'cookie_samesite' => 'Lax',
-    'cookie_secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'cookie_secure' => $productionMode || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
     'use_only_cookies' => true,
     'use_strict_mode' => true,
 ]);
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/security.php';
+
+foreach ([$_GET, $_POST] as $parameters) {
+    foreach ($parameters as $parameter) {
+        if (!is_string($parameter)) {
+            http_response_code(400);
+            exit('Parâmetros inválidos.');
+        }
+    }
+}
 
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
@@ -98,6 +108,28 @@ function require_relationship_plus(int $userId): void
         flash('warning', 'Matches e conversas exigem o plano Relacionamentos Plus.');
         redirect('billing');
     }
+}
+
+function can_access_content(int $userId, int $contentId): bool
+{
+    $sql = "SELECT EXISTS (
+        SELECT 1 FROM content_posts cp JOIN users producer ON producer.id=cp.producer_id
+        WHERE cp.id=:content AND (cp.producer_id=:user OR (
+            cp.status='published' AND producer.status='active' AND NOT cp.is_adult AND (
+                EXISTS (SELECT 1 FROM content_accesses a WHERE a.content_id=cp.id AND a.viewer_id=:user AND a.is_valid)
+                OR EXISTS (SELECT 1 FROM content_purchases p WHERE p.content_id=cp.id AND p.buyer_id=:user AND p.status='approved')
+            )
+        ))
+    )";
+    $statement = db()->prepare($sql);
+    $statement->execute(['content' => $contentId, 'user' => $userId]);
+    return (bool) $statement->fetchColumn();
+}
+
+function post_positive_int(string $field): int
+{
+    $value = $_POST[$field] ?? null;
+    return is_string($value) && ctype_digit($value) && (int) $value > 0 ? (int) $value : 0;
 }
 
 function flash(string $type, string $message): void

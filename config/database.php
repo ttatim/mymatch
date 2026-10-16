@@ -9,17 +9,17 @@ function db(): PDO
         return $connection;
     }
 
-    $environment = strtolower(getenv('APP_ENV') ?: 'development');
+    $environment = strtolower(getenv('APP_ENV') ?: 'production');
     $host = getenv('DB_HOST') ?: '127.0.0.1';
     $port = getenv('DB_PORT') ?: '5432';
     $name = getenv('DB_NAME') ?: 'mymatch';
     $user = getenv('DB_USER') ?: 'postgres';
     $password = getenv('DB_PASSWORD') ?: '';
-    $sslMode = strtolower(getenv('DB_SSLMODE') ?: ($environment === 'production' ? 'require' : 'prefer'));
+    $sslMode = strtolower(getenv('DB_SSLMODE') ?: ($environment === 'development' ? 'prefer' : 'require'));
     $allowedSslModes = ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'];
 
     if (!in_array($sslMode, $allowedSslModes, true)) throw new RuntimeException('DB_SSLMODE inválido.');
-    if ($environment === 'production' && ($password === '' || in_array($sslMode, ['disable', 'allow', 'prefer'], true))) {
+    if ($environment !== 'development' && ($password === '' || in_array($sslMode, ['disable', 'allow', 'prefer'], true))) {
         throw new RuntimeException('Produção exige senha de banco e DB_SSLMODE seguro.');
     }
 
