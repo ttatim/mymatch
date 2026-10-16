@@ -26,7 +26,7 @@ MVP web em PHP 8.3 e PostgreSQL, sem framework e sem orientação a objetos. O A
 
 Dados demonstrativos: `ana@mymatch.local` / `mymatch123`.
 
-Para instalações já criadas antes deste incremento, aplique `database/migrations/20261015_security_access.sql`, `database/migrations/20261016_mfa_replay_protection.sql` e `database/migrations/20261016_system_secrets.sql`; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
+Para instalações já criadas antes deste incremento, aplique `database/migrations/20261015_security_access.sql`, `database/migrations/20261016_mfa_replay_protection.sql`, `database/migrations/20261016_system_secrets.sql` e `database/migrations/20261016_mistral_safety.sql`; nesta fase o arquivo `database/schema.sql` representa o esquema completo de uma instalação nova.
 
 Para habilitar a triagem administrativa em desenvolvimento, execute UPDATE users SET is_admin = true WHERE email = 'ana@mymatch.local'.
 
@@ -39,6 +39,12 @@ O reset usa o envio de e-mail já configurado no PHP (`mail()`) e a URL de `APP_
 Tokens e senhas de integrações operacionais devem ser gravados na tabela `system_secrets`, sempre cifrados pela aplicação. O código os consulta sob demanda com `vault_secret('nome-do-segredo')`; não há valor em arquivo ou código-fonte. Para cadastrá-los sem expô-los na linha de comando, execute `php bin/store-secret.php <nome-do-segredo>` e forneça o valor pela entrada padrão. Exemplos: `mercadopago.access_token`, `pagseguro.webhook_token` e `mail.smtp_password`.
 
 `DB_PASSWORD` e `APP_ENCRYPTION_KEY` são exceções técnicas necessárias: o primeiro abre a conexão com o banco e o segundo cifra os valores nele armazenados. Ambos devem ser injetados pelo ambiente seguro do provedor/KMS, nunca versionados nem inseridos na mesma base que protegem. Essa separação entre chave e dados evita que uma cópia isolada do banco revele os segredos.
+
+## Triagem de idade e segurança com Mistral AI
+
+Cadastre a chave como `mistral.api_key` no cofre. Publicações entram em `pending_review` e permanecem inacessíveis até a triagem; execute `php bin/process-content-safety.php <content-id>` por uma fila/worker restrito. O worker envia apenas imagem elegível à API Vision e aprova exclusivamente uma resposta inequívoca; sinais de menor de idade, sexualização, coerção, exploração, violência ou incerteza levam a `manual_review`.
+
+O módulo inclui `mistral_ocr_document()` para documentos de verificação e a tabela `identity_verification_documents`, mas OCR/IA não constituem comprovação de maioridade nem substituem revisão humana, confirmação de identidade, política de retenção, canal de denúncia e protocolo legal de preservação/escalonamento. Não envie documentos ou mídia a provedores externos sem base legal, política de privacidade e contrato de tratamento de dados adequados.
 
 ## Implantação
 
