@@ -84,6 +84,35 @@ function password_meets_policy(string $password): bool
     return strlen($password) >= 12 && preg_match('/[A-Za-z]/', $password) && preg_match('/\d/', $password);
 }
 
+function app_is_production(): bool
+{
+    return strtolower(getenv('APP_ENV') ?: 'development') === 'production';
+}
+
+function upload_directory(): string
+{
+    $configured = trim(getenv('UPLOAD_DIRECTORY') ?: '');
+    if ($configured === '') {
+        if (app_is_production()) throw new RuntimeException('UPLOAD_DIRECTORY é obrigatório em produção.');
+        $configured = dirname(__DIR__) . '/storage/uploads';
+    }
+    if (!str_starts_with($configured, '/')) throw new RuntimeException('UPLOAD_DIRECTORY deve ser um caminho absoluto.');
+    $appRoot = realpath(dirname(__DIR__));
+    $directory = rtrim($configured, '/');
+    if (app_is_production() && $appRoot && str_starts_with($directory . '/', $appRoot . '/')) {
+        throw new RuntimeException('UPLOAD_DIRECTORY deve ficar fora da raiz da aplicação em produção.');
+    }
+    if (!is_dir($directory) && !mkdir($directory, 0750, true) && !is_dir($directory)) throw new RuntimeException('Diretório de mídia indisponível.');
+    if (!is_writable($directory)) throw new RuntimeException('Diretório de mídia sem permissão de escrita.');
+    return $directory;
+}
+
+function media_storage_path(string $storageKey): ?string
+{
+    if (!preg_match('/^[a-f0-9]{48}$/', $storageKey)) return null;
+    return upload_directory() . '/' . $storageKey;
+}
+
 function client_ip(): string
 {
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
