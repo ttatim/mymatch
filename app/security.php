@@ -29,6 +29,36 @@ function decrypt_mfa_secret(string $ciphertext): string
     return $secret;
 }
 
+function validate_secret_name(string $name): string
+{
+    $name = strtolower(trim($name));
+    if (!preg_match('/^[a-z0-9][a-z0-9_.-]{2,99}$/', $name)) throw new RuntimeException('Nome de segredo inválido.');
+    return $name;
+}
+
+function vault_secret(string $name): string
+{
+    $name = validate_secret_name($name);
+    $statement = db()->prepare('SELECT ciphertext FROM system_secrets WHERE name=:name AND is_active');
+    $statement->execute(['name' => $name]);
+    $ciphertext = $statement->fetchColumn();
+    if (!is_string($ciphertext) || $ciphertext === '') throw new RuntimeException('Segredo operacional não configurado: ' . $name);
+    return decrypt_mfa_secret($ciphertext);
+}
+
+function store_vault_secret(string $name, string $value): void
+{
+    $name = validate_secret_name($name);
+    if ($value === '') throw new RuntimeException('O valor do segredo não pode ser vazio.');
+    $ciphertext = encrypt_mfa_secret($value);
+    $statement = db()->prepare("INSERT INTO system_secrets(name,ciphertext,version,is_active,updated_at)
+        VALUES (:name,:ciphertext,1,true,NOW())
+        ON CONFLICT (name) DO UPDATE SET ciphertext=EXCLUDED.ciphertext, version=system_secrets.version+1, is_active=true, updated_at=NOW()");
+    $statement->execute(['name' => $name, 'ciphertext' => $ciphertext]);
+    db()->prepare("INSERT INTO audit_logs(action,subject_type,metadata) VALUES ('system_secret_updated','system_secret',:metadata)")
+        ->execute(['metadata' => json_encode(['name' => $name])]);
+}
+
 function base32_encode_secret(string $bytes): string
 {
     $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

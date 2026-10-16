@@ -55,6 +55,13 @@ CREATE TABLE auth_throttles (
   locked_until TIMESTAMPTZ,
   PRIMARY KEY (scope, subject_hash)
 );
+CREATE TABLE system_secrets (
+  name VARCHAR(100) PRIMARY KEY,
+  ciphertext TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 CREATE TABLE user_settings (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   content_enabled BOOLEAN NOT NULL DEFAULT false,
