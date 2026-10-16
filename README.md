@@ -54,6 +54,8 @@ Defina `APP_ENV=production`, `APP_ENCRYPTION_KEY`, `APP_BASE_URL` com HTTPS e `U
 
 Use `GET /health.php` para health checks do balanceador ou monitoramento. A resposta é somente `{"status":"ok"}` ou `{"status":"unavailable"}` e não expõe detalhes de conexão.
 
+Antes de liberar tráfego, execute `php bin/preflight-production.php` no mesmo ambiente da aplicação. O comando não exibe valores secretos; ele interrompe a liberação se faltar criptografia, HTTPS, diretório privado de uploads, objetos essenciais do banco, carteira da plataforma ou os segredos necessários ao Mercado Pago.
+
 ### Contêineres
 
 `Dockerfile` prepara Apache/PHP 8.3 com `pdo_pgsql` e bloqueia acesso direto ao diretório `storage`. Para uma prévia local completa, gere uma chave com `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`, substitua `APP_ENCRYPTION_KEY` em `compose.local.yml` e execute `docker compose -f compose.local.yml up --build`.
