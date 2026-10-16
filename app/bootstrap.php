@@ -13,6 +13,13 @@ session_start([
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/security.php';
 
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+header("Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; connect-src 'self'; img-src 'self' https: data:; font-src 'self' https://cdn.jsdelivr.net data:; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net");
+header('Cache-Control: no-store, max-age=0');
+
 function e(?string $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -31,6 +38,12 @@ function verify_csrf(): void
         http_response_code(419);
         exit('Sessão expirada. Atualize a página e tente novamente.');
     }
+}
+
+function clear_authenticated_session(): void
+{
+    $_SESSION = [];
+    session_regenerate_id(true);
 }
 
 function current_user(): ?array
