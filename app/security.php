@@ -99,9 +99,18 @@ function totp_code(string $secret, ?int $timestamp = null): string
 
 function verify_totp(string $secret, string $code): bool
 {
-    if (!preg_match('/^\d{6}$/', $code)) return false;
-    foreach ([-30, 0, 30] as $offset) if (hash_equals(totp_code($secret, time() + $offset), $code)) return true;
-    return false;
+    return totp_matching_step($secret, $code) !== null;
+}
+
+function totp_matching_step(string $secret, string $code): ?int
+{
+    if (!preg_match('/^\d{6}$/', $code)) return null;
+    $now = time();
+    foreach ([-1, 0, 1] as $offset) {
+        $step = intdiv($now, 30) + $offset;
+        if (hash_equals(totp_code($secret, $step * 30), $code)) return $step;
+    }
+    return null;
 }
 
 function make_recovery_code(): string
@@ -116,7 +125,7 @@ function password_meets_policy(string $password): bool
 
 function app_is_production(): bool
 {
-    return strtolower(getenv('APP_ENV') ?: 'development') === 'production';
+    return strtolower(getenv('APP_ENV') ?: 'production') !== 'development';
 }
 
 function upload_directory(): string

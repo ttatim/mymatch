@@ -14,6 +14,7 @@ CREATE TABLE mfa_totp (
   user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   secret_ciphertext TEXT NOT NULL,
   is_enabled BOOLEAN NOT NULL DEFAULT false,
+  last_used_step BIGINT,
   enabled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
