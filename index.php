@@ -187,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($title==='') throw new RuntimeException('Informe um título para a publicação.');
             $price=$accessType === 'free' ? null : (int)round(((float)str_replace(',','.',is_string($_POST['price'] ?? null)?$_POST['price']:'0'))*100);
             if ($price !== null && $price <= 0) throw new RuntimeException('Informe um preço válido para conteúdo pago.');
-            $postStatement=db()->prepare("INSERT INTO content_posts (producer_id,title,description,access_type,price_cents,is_adult,visibility,status) VALUES (:id,:title,:description,:access,:price,:adult,:visibility,'published') RETURNING id");
+            $postStatement=db()->prepare("INSERT INTO content_posts (producer_id,title,description,access_type,price_cents,is_adult,visibility,status) VALUES (:id,:title,:description,:access,:price,:adult,:visibility,'pending_review') RETURNING id");
             $postStatement->execute(['id'=>$id,'title'=>$title,'description'=>$description,'access'=>$accessType,'price'=>$price,'adult'=>false,'visibility'=>$visibility]);
             $postId=(int)$postStatement->fetchColumn();
             preg_match_all('/#([\p{L}\p{N}_]{2,80})/u', $description, $tagMatches);
@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 chmod($storedPath, 0640);
                 db()->prepare('INSERT INTO content_media(content_id,storage_key,original_name,mime_type,size_bytes) VALUES (:post,:key,:name,:mime,:size)')->execute(['post'=>$postId,'key'=>$key,'name'=>basename($_FILES['media']['name']),'mime'=>$mime,'size'=>$_FILES['media']['size']]);
             }
-            db()->commit(); flash('success', 'Publicação criada.');
+            db()->commit(); flash('success', 'Publicação recebida e bloqueada até concluir a análise de segurança.');
         } catch (Throwable $exception) { if(db()->inTransaction())db()->rollBack(); if($storedPath && is_file($storedPath)) unlink($storedPath); flash('warning',$exception instanceof RuntimeException?$exception->getMessage():'Limite mensal do plano gratuito atingido ou plano sem permissão de publicação.'); }
         redirect('content');
     }
